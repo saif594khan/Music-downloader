@@ -25,6 +25,18 @@ function sanitizeFilename(filename) {
   return filename.replace(/[\\/:*?"<>|]/g, "").trim();
 }
 
+// Clean YouTube URLs to remove playlist parameters and force standard video links
+function cleanYoutubeUrl(rawUrl) {
+  try {
+    const urlObj = new URL(rawUrl);
+    urlObj.searchParams.delete("list");
+    urlObj.searchParams.delete("index");
+    return urlObj.toString();
+  } catch (e) {
+    return rawUrl ? rawUrl.split("&list=")[0] : rawUrl;
+  }
+}
+
 // Extract Title and Thumbnail with DRM fallback headers
 async function getTrackMetadata(targetUrl) {
   return new Promise((resolve) => {
@@ -34,9 +46,8 @@ async function getTrackMetadata(targetUrl) {
       "--get-thumbnail",
       "--no-playlist",
       "--no-check-certificates",
-      "--check-formats",
-      "--extractor-args", "youtube:player_client=android,web",
-      "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      "--extractor-args", "youtube:player_client=ios,android,mweb",
+      "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
     ]);
 
     let output = "";
@@ -69,10 +80,13 @@ app.post("/download", async (req, res) => {
     });
   }
 
-  try {
-    console.log(`📥 Incoming link acquisition: ${url}`);
+  // Clean the URL to drop playlist params
+  const cleanUrl = cleanYoutubeUrl(url);
 
-    const metadata = await getTrackMetadata(url);
+  try {
+    console.log(`📥 Incoming link acquisition: ${cleanUrl}`);
+
+    const metadata = await getTrackMetadata(cleanUrl);
     const { title: originalTitle, thumbnail } = metadata;
     console.log(`🎵 Metadata resolved: "${originalTitle}"`);
 
@@ -87,20 +101,19 @@ app.post("/download", async (req, res) => {
     const outputPath = path.join(__dirname, outputFilename);
 
     const args = [
-  url,
-  "-f", "bestaudio/best",
-  "-x",
-  "--audio-format", "mp3",
-  "--add-metadata",
-  "--embed-thumbnail",          // <-- Embeds cover art into the MP3
-  "--convert-thumbnails", "jpg", // <-- Ensures image format is compatible with MP3
-  "--no-check-certificates",
-  "--check-formats",
-  "--extractor-args", "youtube:player_client=android,web",
-  "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "-o", outputPath,
-  "--no-playlist"
-];
+      cleanUrl,
+      "-f", "ba/b/bestaudio/best",   // Robust format selection fallback
+      "-x",
+      "--audio-format", "mp3",
+      "--add-metadata",
+      "--embed-thumbnail",           // Embeds cover art into the MP3
+      "--convert-thumbnails", "jpg",  // Ensures image format is compatible with MP3
+      "--no-check-certificates",
+      "--extractor-args", "youtube:player_client=ios,android,mweb",
+      "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+      "-o", outputPath,
+      "--no-playlist"
+    ];
 
     if (ffmpegPath) {
       args.push("--ffmpeg-location", ffmpegPath);

@@ -1,214 +1,177 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Music Downloader</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  </head>
 
-  <body
-    class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4"
-  >
-    <div
-      class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-2xl border border-slate-700/50"
-    >
-      <div class="text-center mb-6">
-        <h1
-          class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent"
-        >
-          Audio Downloader
-        </h1>
-        <p class="text-slate-400 text-sm mt-1">
-          Convert YouTube links to high-quality MP3s
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Downloader</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('SW Registered!', reg))
+          .catch(err => console.error('SW Error:', err));
+      });
+    }
+  </script>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-2xl border border-slate-700/50">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+        Audio Downloader
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">
+        Convert YouTube links to high-quality MP3s
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label for="urlInput" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Paste Media Link
+        </label>
+        <input type="text" id="urlInput" spellcheck="false" onfocus="this.select()" onclick="this.select()"
+          placeholder="https://www.youtube.com/watch?v=..."
+          class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm transition-colors" />
+      </div>
+
+      <button id="downloadBtn"
+        class="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all text-sm cursor-pointer">
+        Convert & Download
+      </button>
+    </div>
+
+    <div class="mt-6 border-t border-slate-700/50 pt-4 empty:hidden">
+      <div id="loadingState" class="hidden flex flex-col items-center justify-center py-4 space-y-3">
+        <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-slate-400 text-xs tracking-wide animate-pulse">
+          Initializing pipeline extraction stream...
         </p>
       </div>
 
-      <div class="space-y-4">
-        <div>
-          <label
-            for="urlInput"
-            class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2"
-          >
-            Paste Media Link
-          </label>
-          <input
-            type="text"
-            id="urlInput"
-            spellcheck="false"
-            onfocus="this.select()"
-            onclick="this.select()"
-            placeholder="https://www.youtube.com/watch?v=..."
-            class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm transition-colors"
-          />
-        </div>
-
-        <button
-          id="downloadBtn"
-          class="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all text-sm cursor-pointer"
-        >
-          Convert & Download
-        </button>
+      <div id="errorState" class="hidden bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 space-y-1">
+        <h3 class="text-rose-400 text-sm font-semibold">Process Exception</h3>
+        <p id="errorDetails" class="text-rose-300/80 text-xs leading-relaxed break-words"></p>
       </div>
 
-      <div class="mt-6 border-t border-slate-700/50 pt-4 empty:hidden">
-        <div
-          id="loadingState"
-          class="hidden flex flex-col items-center justify-center py-4 space-y-3"
-        >
-          <div
-            class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
-          ></div>
-          <p class="text-slate-400 text-xs tracking-wide animate-pulse">
-            Initializing pipeline extraction stream...
-          </p>
+      <div id="readyState" class="hidden bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-4">
+        <div class="w-full overflow-hidden rounded-lg aspect-video bg-slate-950 border border-slate-700">
+          <img id="trackThumbnail" src="" alt="Track Thumbnail" class="w-full h-full object-cover hidden" />
         </div>
 
-        <div
-          id="errorState"
-          class="hidden bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 space-y-1"
-        >
-          <h3 class="text-rose-400 text-sm font-semibold">Process Exception</h3>
-          <p
-            id="errorDetails"
-            class="text-rose-300/80 text-xs leading-relaxed break-words"
-          ></p>
-        </div>
-
-        <div
-          id="readyState"
-          class="hidden bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-4"
-        >
-          <div
-            class="w-full overflow-hidden rounded-lg aspect-video bg-slate-950 border border-slate-700"
-          >
-            <img
-              id="trackThumbnail"
-              src=""
-              alt="Track Thumbnail"
-              class="w-full h-full object-cover hidden"
-            />
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+            ✓
           </div>
-
-          <div class="flex items-center space-x-3">
-            <div
-              class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"
-            >
-              ✓
-            </div>
-            <div class="min-w-0 flex-1">
-              <h3
-                id="resolvedTrackTitle"
-                class="text-emerald-400 text-sm font-semibold truncate"
-              >
-                Extraction Complete
-              </h3>
-              <p class="text-slate-400 text-xs">
-                Audio track synchronized successfully
-              </p>
-            </div>
+          <div class="min-w-0 flex-1">
+            <h3 id="resolvedTrackTitle" class="text-emerald-400 text-sm font-semibold truncate">
+              Extraction Complete
+            </h3>
+            <p class="text-slate-400 text-xs">
+              Audio track synchronized successfully
+            </p>
           </div>
-
-          <audio
-            id="audioPlayer"
-            controls
-            class="w-full h-10 bg-slate-900 rounded-lg overflow-hidden"
-          ></audio>
-
-          <a
-            id="saveFileBtn"
-            href="#"
-            class="block text-center w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-colors shadow-lg shadow-emerald-600/20"
-          >
-            Save Track to Device
-          </a>
         </div>
+
+        <audio id="audioPlayer" controls class="w-full h-10 bg-slate-900 rounded-lg overflow-hidden"></audio>
+
+        <a id="saveFileBtn" href="#"
+          class="block text-center w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-colors shadow-lg shadow-emerald-600/20">
+          Save Track to Device
+        </a>
       </div>
     </div>
+  </div>
 
-    <script>
-      const urlInput = document.getElementById("urlInput");
-      const downloadBtn = document.getElementById("downloadBtn");
-      const loadingState = document.getElementById("loadingState");
-      const errorState = document.getElementById("errorState");
-      const readyState = document.getElementById("readyState");
-      const errorDetails = document.getElementById("errorDetails");
-      const audioPlayer = document.getElementById("audioPlayer");
-      const saveFileBtn = document.getElementById("saveFileBtn");
-      const trackThumbnail = document.getElementById("trackThumbnail");
-      const resolvedTrackTitle = document.getElementById("resolvedTrackTitle");
+  <script>
+    const urlInput = document.getElementById("urlInput");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const loadingState = document.getElementById("loadingState");
+    const errorState = document.getElementById("errorState");
+    const readyState = document.getElementById("readyState");
+    const errorDetails = document.getElementById("errorDetails");
+    const audioPlayer = document.getElementById("audioPlayer");
+    const saveFileBtn = document.getElementById("saveFileBtn");
+    const trackThumbnail = document.getElementById("trackThumbnail");
+    const resolvedTrackTitle = document.getElementById("resolvedTrackTitle");
 
-      urlInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          downloadBtn.click();
+    urlInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        downloadBtn.click();
+      }
+    });
+
+    downloadBtn.addEventListener("click", async () => {
+      const url = urlInput.value.trim();
+
+      loadingState.classList.remove("hidden");
+      errorState.classList.add("hidden");
+      readyState.classList.add("hidden");
+      trackThumbnail.classList.add("hidden");
+      downloadBtn.disabled = true;
+      downloadBtn.classList.add("opacity-50", "cursor-not-allowed");
+
+      try {
+        const response = await fetch("/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(
+            errData.details || "Internal server pipeline failure",
+          );
         }
-      });
 
-      downloadBtn.addEventListener("click", async () => {
-        const url = urlInput.value.trim();
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
 
-        loadingState.classList.remove("hidden");
-        errorState.classList.add("hidden");
-        readyState.classList.add("hidden");
-        trackThumbnail.classList.add("hidden");
-        downloadBtn.disabled = true;
-        downloadBtn.classList.add("opacity-50", "cursor-not-allowed");
-
-        try {
-          const response = await fetch("/download", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url }),
-          });
-
-          if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(
-              errData.details || "Internal server pipeline failure",
-            );
-          }
-
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-
-          const disposition = response.headers.get("content-disposition");
-          let filename = "converted_audio.mp3";
-          if (disposition && disposition.includes("filename*=")) {
-            filename = decodeURIComponent(
-              disposition.split("filename*=UTF-8''")[1],
-            );
-          } else if (disposition && disposition.includes("filename=")) {
-            filename = decodeURIComponent(
-              disposition.split("filename=")[1].replace(/["']/g, ""),
-            );
-          }
-
-          const encodedThumb = response.headers.get("x-thumbnail-url");
-          if (encodedThumb) {
-            const thumbUrl = decodeURIComponent(encodedThumb);
-            trackThumbnail.src = thumbUrl;
-            trackThumbnail.classList.remove("hidden");
-          }
-
-          resolvedTrackTitle.textContent = filename.replace(/\.mp3$/i, "");
-
-          audioPlayer.src = blobUrl;
-          saveFileBtn.href = blobUrl;
-          saveFileBtn.download = filename;
-
-          loadingState.classList.add("hidden");
-          readyState.classList.remove("hidden");
-        } catch (err) {
-          loadingState.classList.add("hidden");
-          errorState.classList.remove("hidden");
-          errorDetails.textContent = err.message;
-        } finally {
-          downloadBtn.disabled = false;
-          downloadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+        const disposition = response.headers.get("content-disposition");
+        let filename = "converted_audio.mp3";
+        if (disposition && disposition.includes("filename*=")) {
+          filename = decodeURIComponent(
+            disposition.split("filename*=UTF-8''")[1],
+          );
+        } else if (disposition && disposition.includes("filename=")) {
+          filename = decodeURIComponent(
+            disposition.split("filename=")[1].replace(/["']/g, ""),
+          );
         }
-      });
-    </script>
 
-  </body>
+        const encodedThumb = response.headers.get("x-thumbnail-url");
+        if (encodedThumb) {
+          const thumbUrl = decodeURIComponent(encodedThumb);
+          trackThumbnail.src = thumbUrl;
+          trackThumbnail.classList.remove("hidden");
+        }
+
+        resolvedTrackTitle.textContent = filename.replace(/\.mp3$/i, "");
+
+        audioPlayer.src = blobUrl;
+        saveFileBtn.href = blobUrl;
+        saveFileBtn.download = filename;
+
+        loadingState.classList.add("hidden");
+        readyState.classList.remove("hidden");
+      } catch (err) {
+        loadingState.classList.add("hidden");
+        errorState.classList.remove("hidden");
+        errorDetails.textContent = err.message;
+      } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+    });
+  </script>
+
+</body>
+
 </html>
